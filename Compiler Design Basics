@@ -1,0 +1,182 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h> // For isalpha, isdigit, isalnum
+
+// --- Token Definitions ---
+typedef enum {
+    TOKEN_EOF = 0,         // End of File
+    TOKEN_INT,             // Integer literal (e.g., 123)
+    TOKEN_PLUS,            // +
+    TOKEN_MINUS,           // -
+    TOKEN_MULTIPLY,        // *
+    TOKEN_DIVIDE,          // /
+    TOKEN_LPAREN,          // (
+    TOKEN_RPAREN,          // )
+    TOKEN_IDENTIFIER,      // e.g., x, sum, myVar
+    TOKEN_ASSIGN,          // =
+    TOKEN_SEMICOLON,       // ;
+    TOKEN_PRINT            // 'print' keyword
+} TokenType;
+
+// Structure to hold a token
+typedef struct {
+    TokenType type;
+    char *lexeme; // The actual text of the token
+    int line;
+    int column;
+} Token;
+
+// Global variable for current position in source code
+const char *source_code;
+int current_pos = 0;
+int current_line = 1;
+int current_column = 1;
+
+// --- Lexer Functions ---
+
+// Creates a new Token object
+Token *create_token(TokenType type, const char *lexeme_start, int length) {
+    Token *token = (Token *)malloc(sizeof(Token));
+    if (!token) {
+        fprintf(stderr, "Memory allocation failed for token.\n");
+        exit(EXIT_FAILURE);
+    }
+    token->type = type;
+    token->lexeme = (char *)malloc(length + 1);
+    if (!token->lexeme) {
+        fprintf(stderr, "Memory allocation failed for lexeme.\n");
+        exit(EXIT_FAILURE);
+    }
+    strncpy(token->lexeme, lexeme_start, length);
+    token->lexeme[length] = '\0';
+    token->line = current_line;
+    token->column = current_column;
+    return token;
+}
+
+// Frees a Token object
+void free_token(Token *token) {
+    if (token) {
+        free(token->lexeme);
+        free(token);
+    }
+}
+
+// Gets the next character from the source code
+char advance() {
+    char c = source_code[current_pos];
+    current_pos++;
+    current_column++;
+    return c;
+}
+
+// Peeks at the next character without advancing
+char peek() {
+    return source_code[current_pos];
+}
+
+// Skips whitespace characters
+void skip_whitespace() {
+    while (source_code[current_pos] != '\0' && isspace(source_code[current_pos])) {
+        if (source_code[current_pos] == '\n') {
+            current_line++;
+            current_column = 1;
+        } else {
+            current_column++;
+        }
+        current_pos++;
+    }
+}
+
+// Lexer function to get the next token
+Token *get_next_token() {
+    skip_whitespace();
+
+    if (source_code[current_pos] == '\0') {
+        return create_token(TOKEN_EOF, "", 0);
+    }
+
+    char c = peek();
+    int start_pos = current_pos;
+    int start_column = current_column;
+
+    if (isdigit(c)) {
+        while (isdigit(peek())) {
+            advance();
+        }
+        return create_token(TOKEN_INT, &source_code[start_pos], current_pos - start_pos);
+    }
+
+    if (isalpha(c) || c == '_') {
+        while (isalnum(peek()) || peek() == '_') {
+            advance();
+        }
+        char *lexeme_str = (char *)malloc(current_pos - start_pos + 1);
+        strncpy(lexeme_str, &source_code[start_pos], current_pos - start_pos);
+        lexeme_str[current_pos - start_pos] = '\0';
+
+        // Check for keywords
+        if (strcmp(lexeme_str, "print") == 0) {
+            Token *t = create_token(TOKEN_PRINT, lexeme_str, strlen(lexeme_str));
+            free(lexeme_str); // Free temporary lexeme
+            return t;
+        }
+        Token *t = create_token(TOKEN_IDENTIFIER, lexeme_str, strlen(lexeme_str));
+        free(lexeme_str); // Free temporary lexeme
+        return t;
+    }
+
+    advance(); // Advance past the single character token
+
+    switch (c) {
+        case '+': return create_token(TOKEN_PLUS, "+", 1);
+        case '-': return create_token(TOKEN_MINUS, "-", 1);
+        case '*': return create_token(TOKEN_MULTIPLY, "*", 1);
+        case '/': return create_token(TOKEN_DIVIDE, "/", 1);
+        case '(': return create_token(TOKEN_LPAREN, "(", 1);
+        case ')': return create_token(TOKEN_RPAREN, ")", 1);
+        case '=': return create_token(TOKEN_ASSIGN, "=", 1);
+        case ';': return create_token(TOKEN_SEMICOLON, ";", 1);
+        default:
+            fprintf(stderr, "Lexical error: Unexpected character '%c' at line %d, column %d\n", c, current_line, start_column);
+            exit(EXIT_FAILURE);
+    }
+}
+
+/*
+// Example Usage for Lexer
+int main() {
+    source_code = "x = 10 + 5; print x;";
+    //source_code = "123 + _abc / (45 - xyz);"; // More complex example
+    //source_code = "print 100;";
+
+    Token *token;
+    do {
+        token = get_next_token();
+        printf("Token: Type=%d (", token->type);
+        switch(token->type) {
+            case TOKEN_EOF: printf("EOF"); break;
+            case TOKEN_INT: printf("INT"); break;
+            case TOKEN_PLUS: printf("PLUS"); break;
+            case TOKEN_MINUS: printf("MINUS"); break;
+            case TOKEN_MULTIPLY: printf("MULTIPLY"); break;
+            case TOKEN_DIVIDE: printf("DIVIDE"); break;
+            case TOKEN_LPAREN: printf("LPAREN"); break;
+            case TOKEN_RPAREN: printf("RPAREN"); break;
+            case TOKEN_IDENTIFIER: printf("IDENTIFIER"); break;
+            case TOKEN_ASSIGN: printf("ASSIGN"); break;
+            case TOKEN_SEMICOLON: printf("SEMICOLON"); break;
+            case TOKEN_PRINT: printf("PRINT"); break;
+        }
+        printf("), Lexeme='%s', Line=%d, Col=%d\n", token->lexeme, token->line, token->column);
+        if (token->type == TOKEN_EOF) {
+            free_token(token);
+            break;
+        }
+        free_token(token);
+    } while (1);
+
+    return 0;
+}
+*/
