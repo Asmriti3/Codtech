@@ -1,0 +1,111 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h> // For malloc and free
+
+// Function to compress data using RLE
+char* compressRLE(const char* input) {
+    if (input == NULL || *input == '\0') {
+        return strdup(""); // Return an empty string for empty input
+    }
+
+    // Allocate memory for the compressed string.
+    // In the worst case (no repetitions), the compressed string can be twice the size
+    // of the input (e.g., "ABC" -> "A1B1C1"). Plus null terminator.
+    size_t input_len = strlen(input);
+    char* compressed = (char*)malloc(input_len * 2 + 1);
+    if (compressed == NULL) {
+        perror("Failed to allocate memory for compression");
+        return NULL;
+    }
+
+    int i = 0, j = 0;
+    while (i < input_len) {
+        char current_char = input[i];
+        int count = 0;
+        while (i < input_len && input[i] == current_char) {
+            count++;
+            i++;
+        }
+        // Append the character
+        compressed[j++] = current_char;
+        // Append the count (as a character)
+        // This is a simplification: max count is 9. For larger counts,
+        // you'd need to convert int to string (e.g., using sprintf)
+        if (count > 9) {
+            // For counts > 9, you'd need a more robust conversion (e.g., itoa or sprintf)
+            // For simplicity in this example, we'll cap it at 9 for single digit representation
+            // or use multiple characters if you convert to string
+            sprintf(&compressed[j], "%d", count); // Use sprintf for multi-digit counts
+            j += strlen(&compressed[j]); // Advance j by the number of digits written
+        } else {
+            compressed[j++] = count + '0'; // Convert digit to its ASCII character
+        }
+    }
+    compressed[j] = '\0'; // Null-terminate the compressed string
+    return compressed;
+}
+
+// Function to decompress data using RLE
+char* decompressRLE(const char* input) {
+    if (input == NULL || *input == '\0') {
+        return strdup(""); // Return an empty string for empty input
+    }
+
+    // Allocate memory for the decompressed string.
+    // We don't know the exact size beforehand, so we'll realloc or allocate a large enough buffer.
+    // A rough estimate: max 2 characters per original character (e.g., 'A1') means 1/2 the size * 10 (max count)
+    size_t input_len = strlen(input);
+    char* decompressed = (char*)malloc(input_len * 10 + 1); // Max potential expansion, rough estimate
+    if (decompressed == NULL) {
+        perror("Failed to allocate memory for decompression");
+        return NULL;
+    }
+
+    int i = 0, j = 0;
+    while (i < input_len) {
+        char current_char = input[i++];
+        int count = 0;
+        // Read the count. It might be a single digit or multiple digits.
+        while (i < input_len && input[i] >= '0' && input[i] <= '9') {
+            count = count * 10 + (input[i] - '0');
+            i++;
+        }
+
+        // Append the character 'count' times
+        for (int k = 0; k < count; k++) {
+            decompressed[j++] = current_char;
+        }
+    }
+    decompressed[j] = '\0'; // Null-terminate the decompressed string
+    return decompressed;
+}
+
+int main() {
+    const char* original_data1 = "AAAABBBCCDAA";
+    const char* original_data2 = "WWWWWWWWWWWWBWWWWWWWWWWWWBBBWWWWWWWWWWWWWWWWWWWWWWWWB";
+    const char* original_data3 = "ABCDEFG"; // No compression for this one
+
+    printf("Original Data 1: %s\n", original_data1);
+    char* compressed_data1 = compressRLE(original_data1);
+    if (compressed_data1) {
+        printf("Compressed Data 1: %s (Length: %zu)\n", compressed_data1, strlen(compressed_data1));
+        char* decompressed_data1 = decompressRLE(compressed_data1);
+        if (decompressed_data1) {
+            printf("Decompressed Data 1: %s\n", decompressed_data1);
+            printf("Matches original: %s\n\n", strcmp(original_data1, decompressed_data1) == 0 ? "Yes" : "No");
+            free(decompressed_data1);
+        }
+        free(compressed_data1);
+    }
+
+    printf("Original Data 2: %s\n", original_data2);
+    char* compressed_data2 = compressRLE(original_data2);
+    if (compressed_data2) {
+        printf("Compressed Data 2: %s (Length: %zu)\n", compressed_data2, strlen(compressed_data2));
+        char* decompressed_data2 = decompressRLE(compressed_data2);
+        if (decompressed_data2) {
+            printf("Decompressed Data 2: %s\n", decompressed_data2);
+            printf("Matches original: %s\n\n", strcmp(original_data2, decompressed_data2) == 0 ? "Yes" : "No");
+            free(decompressed_data2);
+        }
+        free(compressed_
